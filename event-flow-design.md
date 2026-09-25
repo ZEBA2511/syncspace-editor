@@ -21,4 +21,3 @@
 * **Event Consumption:** The projection engine subscribes to the event stream to capture incoming immutable events (e.g., `INVENTORY_ITEM_CREATED`).
 * **State Calculation:** When an event is processed, the handler updates the read model collection to reflect the latest active inventory status for warehouse operators.
 * **Idempotency Check:** Handlers ensure that processing the same event multiple times during network retries does not cause duplicate state mutations.
-*
