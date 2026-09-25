@@ -13,4 +13,3 @@
 * **API Gateway / Backend Service:** Handles incoming HTTP POST requests, validates payloads against business rules, and acts as the gatekeeper for event generation.
 * **Event Store (Persistence Layer):** An append-only log database (such as MongoDB) designed to store historical events chronologically.
 * **State Projection Engine:** Replays historical events on-the-fly to reconstruct the current active state of any inventory item without modifying historical logs.
-*
