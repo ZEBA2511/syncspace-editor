@@ -15,4 +15,3 @@ Yeh document system ke andar commands ke aane, unke validation, aur events me co
 3. **Event Generation:** Valid command ke basis par ek naya Event generate hota hai with timestamp aur version.
 4. **Event Store Persistence:** Event ko MongoDB ke Event Store collection me append kar diya jata hai.
 5. **State Reconstruction (Replay):** Jab bhi state ki zarurat hoti hai, events ki list ko fetch karke projection logic ke through current state calculate ki jati hai.
-6.
