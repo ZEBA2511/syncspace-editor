@@ -56,3 +56,22 @@ Commands represent the intent to perform an action in the system. They are writt
     "triggeredByCommand": "cmd_885522"
   }
 }
+## 3. Additional Example: Heavy Duty Pallet Jack
+
+### Command Payload (`CREATE_INVENTORY_ITEM`)
+```json
+{
+  "commandId": "cmd_774433",
+  "commandType": "CREATE_INVENTORY_ITEM",
+  "timestamp": "2026-09-26T21:30:00Z",
+  "payload": {
+    "sku": "ITEM-WH-003",
+    "itemName": "Heavy Duty Pallet Jack",
+    "initialQuantity": 25,
+    "warehouseLocation": "Sector-1C"
+  },
+  "metadata": {
+    "userId": "operator_zeba",
+    "sourceClient": "React-Dashboard"
+  }
+}
