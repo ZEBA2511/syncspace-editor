@@ -40,3 +40,19 @@ Commands represent the intent to perform an action in the system. They are writt
     "sourceClient": "React-Dashboard"
   }
 }
+
+{
+  "eventId": "evt_994411",
+  "eventType": "INVENTORY_ITEM_CREATED",
+  "version": 1,
+  "timestamp": "2026-09-26T21:15:02Z",
+  "data": {
+    "sku": "ITEM-WH-002",
+    "itemName": "High-Visibility Safety Jacket",
+    "quantity": 300,
+    "warehouseLocation": "Sector-2A"
+  },
+  "causality": {
+    "triggeredByCommand": "cmd_885522"
+  }
+}
