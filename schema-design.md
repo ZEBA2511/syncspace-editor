@@ -19,3 +19,24 @@ Commands represent the intent to perform an action in the system. They are writt
     "sourceClient": "React-Dashboard"
   }
 }
+# Week 1 (Day 3): Command & Event Schema Design
+
+## 1. Command Structure (Input Payload)
+Commands represent the intent to perform an action in the system. They are written in the imperative mood (e.g., `CreateInventoryItem`).
+
+```json
+{
+  "commandId": "cmd_885522",
+  "commandType": "CREATE_INVENTORY_ITEM",
+  "timestamp": "2026-09-26T21:15:00Z",
+  "payload": {
+    "sku": "ITEM-WH-002",
+    "itemName": "High-Visibility Safety Jacket",
+    "initialQuantity": 300,
+    "warehouseLocation": "Sector-2A"
+  },
+  "metadata": {
+    "userId": "operator_zeba",
+    "sourceClient": "React-Dashboard"
+  }
+}
