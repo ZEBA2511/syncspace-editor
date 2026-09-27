@@ -386,3 +386,38 @@ for (const event of batch) {
         await moveToDeadLetterQueue(event, error.message, db.deadLetterQueue);
       }
     }
+    ## 7. Aggregate Snapshotting Strategy
+To optimize performance and avoid replaying long event streams from scratch:
+
+```javascript
+// Save a snapshot of the aggregate state
+async function saveSnapshot(sku, currentState, sequenceNumber, snapshotCollection) {
+  await snapshotCollection.updateOne(
+    { sku: sku },
+    {
+      $set: {
+        state: currentState,
+        lastSequenceNumber: sequenceNumber,
+        updatedAt: new Date().toISOString()
+      }
+    },
+    { upsert: true }
+  );
+  console.log(`Snapshot saved for SKU: ${sku} at sequence ${sequenceNumber}`);
+}
+
+// Load state from the latest snapshot before replaying remaining events
+async function loadAggregateWithSnapshot(sku, eventStore, snapshotCollection) {
+  const snapshot = await snapshotCollection.findOne({ sku: sku });
+  
+  let currentState = snapshot ? snapshot.state : null;
+  let fromSequence = snapshot ? snapshot.lastSequenceNumber : 0;
+
+  // Fetch only events that occurred *after* the snapshot
+  const subsequentEvents = await eventStore.find({
+    'data.sku': sku,
+    sequenceNumber: { $gt: fromSequence }
+  }).sort({ sequenceNumber: 1 });
+
+  return { currentState, subsequentEvents };
+}
