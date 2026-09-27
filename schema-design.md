@@ -447,4 +447,60 @@ async function processEventIdempotently(event, projectionHandler, processedEvent
     console.error(`Error processing event ${event.eventId}:`, error.message);
     throw error;
   }
-}
+// Day 6: Express Query API Endpoints for Inventory Read Model
+const express = require('express');
+const router = express.Router();
+
+// 1. Get Inventory Item by SKU (Fast Read-Model Lookup)
+router.get('/api/inventory/:sku', async (req, res) => {
+  try {
+    const { sku } = req.params;
+    
+    // Query directly from the optimized read model collection
+    const item = await global.db.inventoryReadModel.findOne({ sku });
+
+    if (!item) {
+      return res.status(404).json({ error: `Inventory item with SKU '${sku}' not found.` });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: item
+    });
+
+  } catch (err) {
+    console.error("Error fetching inventory item:", err.message);
+    return res.status(500).json({ error: "Internal Server Error during query" });
+  }
+});
+
+// 2. List All Inventory Items with Pagination
+router.get('/api/inventory', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const items = await global.db.inventoryReadModel
+      .find({})
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    const totalCount = await global.db.inventoryReadModel.countDocuments();
+
+    return res.status(200).json({
+      success: true,
+      page,
+      limit,
+      totalCount,
+      data: items
+    });
+
+  } catch (err) {
+    console.error("Error listing inventory items:", err.message);
+    return res.status(500).json({ error: "Internal Server Error during query listing" });
+  }
+});
+
+module.exports = router;
