@@ -566,3 +566,50 @@ CMD ["node", "server.js"]
 git add .
 git commit -m "feat: add docker and docker-compose configuration for seamless containerized deployment"
 git push origin main
+// Day 6: Projection Handlers (Updates Read Model based on Event Type)
+async function projectEventToReadModel(event) {
+  const { eventType, data } = event;
+  const { sku } = data;
+
+  switch (eventType) {
+    case 'INVENTORY_ITEM_CREATED':
+      await db.inventoryReadModel.updateOne(
+        { sku },
+        {
+          $set: {
+            sku: sku,
+            name: data.name,
+            quantity: data.initialQuantity || 0,
+            warehouseLocation: data.warehouseLocation,
+            status: 'ACTIVE',
+            createdAt: new Date().toISOString()
+          }
+        },
+        { upsert: true }
+      );
+      break;
+
+    case 'INVENTORY_RESTOCKED':
+      await db.inventoryReadModel.updateOne(
+        { sku },
+        { 
+          $inc: { quantity: data.quantityAdded },$set: { updatedAt: new Date().toISOString() }
+        }
+      );
+      break;
+
+    case 'INVENTORY_DISPATCHED':
+      await db.inventoryReadModel.updateOne(
+        { sku },
+        { 
+          $inc: { quantity: -data.quantityDispatched },$set: { updatedAt: new Date().toISOString() }
+        }
+      );
+      break;
+
+    default:
+      console.log(`Unhandled event type for projection: ${eventType}`);
+  }
+}
+// Inside your /api/commands route, right after db.eventStore.insertOne(newEvent):
+await projectEventToReadModel(newEvent);
