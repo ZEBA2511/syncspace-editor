@@ -136,3 +136,18 @@ async function handleInventoryQuantityUpdated(event) {
   
   console.log(`Stock updated successfully for SKU: ${sku}`);
 }
+## 5. Idempotency & Concurrency Control
+To prevent duplicate processing or out-of-order event handling in projections, we track the last processed event ID:
+
+```javascript
+async function processEventSafely(event) {
+  const existingRecord = await db.inventoryReadModel.findOne({ sku: event.data.sku });
+  
+  // Check for duplicate or older event (Idempotency check)
+  if (existingRecord && existingRecord.lastUpdatedEventId === event.eventId) {
+    console.log(`Event ${event.eventId} already processed. Skipping.`);
+    return;
+  }
+
+  // Proceed with handler logic...
+}
