@@ -231,3 +231,56 @@ app.get('/api/inventory/:sku', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+# Week 1 (Day 5): Unit Testing Projections & Event Stream Synchronization
+
+## 1. Overview
+On Day 5, we write automated unit tests to verify that our event handlers correctly project events into the read-model database and ensure event stream synchronization without data loss.
+
+## 2. Unit Testing Event Handlers (Jest Framework Example)
+Testing `handleInventoryItemCreated` to ensure the read-model document is created accurately when an event is emitted:
+
+```javascript
+// inventory.projection.test.js
+const { handleInventoryItemCreated } = require('./projections');
+
+describe('Inventory Projection Handlers', () => {
+  let mockDb;
+
+  beforeEach(() => {
+    mockDb = {
+      inventoryReadModel: {
+        insertOne: jest.fn().mockResolvedValue(true)
+      }
+    };
+  });
+
+  test('should project INVENTORY_ITEM_CREATED event into read model correctly', async () => {
+    const sampleEvent = {
+      eventId: "evt_test_001",
+      eventType: "INVENTORY_ITEM_CREATED",
+      timestamp: "2026-09-27T08:00:00Z",
+      data: {
+        sku: "ITEM-WH-005",
+        itemName: "Hi-Vis Safety Jacket",
+        quantity: 50,
+        warehouseLocation: "Sector-2B"
+      }
+    };
+
+    // Inject mock database into the context
+    global.db = mockDb;
+
+    await handleInventoryItemCreated(sampleEvent);
+
+    expect(mockDb.inventoryReadModel.insertOne).toHaveBeenCalledTimes(1);
+    expect(mockDb.inventoryReadModel.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sku: "ITEM-WH-005",
+        name: "Hi-Vis Safety Jacket",
+        currentStock: 50,
+        location: "Sector-2B",
+        lastUpdatedEventId: "evt_test_001"
+      })
+    );
+  });
+});
