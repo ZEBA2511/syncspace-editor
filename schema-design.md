@@ -938,8 +938,9 @@ describe('Inventory & Logistics Ledger API Tests 🚀', () => {
     expect(response.body.data.sku).toBe('SKU-TEST');
   });
 });
-  "test": "jest"    
+ {
   "scripts": {
-  "start": "node server.js",
-  "test": "jest"
+    "start": "node server.js",
+    "test": "jest"
+  }
 }
