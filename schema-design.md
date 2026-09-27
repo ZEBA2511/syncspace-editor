@@ -75,3 +75,40 @@ Commands represent the intent to perform an action in the system. They are writt
     "sourceClient": "React-Dashboard"
   }
 }
+{
+  "eventId": "evt_556677",
+  "eventType": "INVENTORY_ITEM_CREATED",
+  "version": 1,
+  "timestamp": "2026-09-26T21:30:02Z",
+  "data": {
+    "sku": "ITEM-WH-003",
+    "itemName": "Heavy Duty Pallet Jack",
+    "quantity": 25,
+    "warehouseLocation": "Sector-1C"
+  },
+  "causality": {
+    "triggeredByCommand": "cmd_774433"
+  }
+}
+# Week 1 (Day 4): Projection Logic & Event Handlers
+
+## 1. Overview
+Projections consume immutable events from the event store to build optimized read models for fast querying.
+
+## 2. Event Handler Implementation (Node.js / JavaScript Example)
+```javascript
+async function handleInventoryItemCreated(event) {
+  if (event.eventType !== "INVENTORY_ITEM_CREATED") return;
+
+  const { sku, itemName, quantity, warehouseLocation } = event.data;
+  
+  const readModelRecord = {
+    sku: sku,
+    name: itemName,
+    currentStock: quantity,
+    location: warehouseLocation,
+    updatedAt: event.timestamp
+  };
+
+  await db.inventoryReadModel.insertOne(readModelRecord);
+}
