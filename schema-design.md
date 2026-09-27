@@ -938,9 +938,71 @@ describe('Inventory & Logistics Ledger API Tests 🚀', () => {
     expect(response.body.data.sku).toBe('SKU-TEST');
   });
 });
- {
-  "scripts": {
-    "start": "node server.js",
-    "test": "jest"
+ // ==========================================
+// Day 7: Automated Integration Tests (Jest + Supertest)
+// ==========================================
+const request = require('supertest');
+const express = require('express');
+const Joi = require('joi');
+
+const app = express();
+app.use(express.json());
+
+// Mock Database for testing
+const mockDb = {
+  eventStore: {
+    insertOne: jest.fn().mockResolvedValue({ insertedId: 'mock_id' }),
+    findOne: jest.fn().mockResolvedValue(null)
+  },
+  inventoryReadModel: {
+    updateOne: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
+    findOne: jest.fn().mockResolvedValue({ sku: 'SKU-TEST', name: 'Test Item', quantity: 50 })
   }
-}
+};
+
+global.db = mockDb;
+
+const inventoryCommandSchema = Joi.object({
+  commandType: Joi.string().valid('CREATE_ITEM', 'RESTOCK_ITEM', 'DISPATCH_ITEM').required(),
+  sku: Joi.string().required(),
+  payload: Joi.object().required()
+});
+
+app.post('/api/commands', async (req, res) => {
+  const { error, value } = inventoryCommandSchema.validate(req.body);
+  if (error) return res.status(400).json({ error: error.details[0].message });
+  
+  await global.db.eventStore.insertOne(value);
+  return res.status(201).json({ success: true, message: "Command processed successfully." });
+});
+
+app.get('/api/inventory/:sku', async (req, res) => {
+  const item = await global.db.inventoryReadModel.findOne({ sku: req.params.sku });
+  if (!item) return res.status(404).json({ error: "Item not found" });
+  return res.status(200).json({ success: true, data: item });
+});
+
+// --- Test Suites ---
+describe('Inventory & Logistics Ledger API Tests 🚀', () => {
+  
+  test('POST /api/commands - Should successfully process a valid CREATE_ITEM command', async () => {
+    const response = await request(app)
+      .post('/api/commands')
+      .send({
+        commandType: 'CREATE_ITEM',
+        sku: 'SKU-TEST',
+        payload: { name: 'Test Product', initialQuantity: 100 }
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+  });
+
+  test('GET /api/inventory/:sku - Should return read-model item data successfully', async () => {
+    const response = await request(app).get('/api/inventory/SKU-TEST');
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.sku).toBe('SKU-TEST');
+  });
+});
