@@ -421,3 +421,30 @@ async function loadAggregateWithSnapshot(sku, eventStore, snapshotCollection) {
 
   return { currentState, subsequentEvents };
 }
+// Idempotent Event Consumer Guard
+async function processEventIdempotently(event, projectionHandler, processedEventsCollection) {
+  // Check if the event has already been processed
+  const existingRecord = await processedEventsCollection.findOne({ eventId: event.eventId });
+  
+  if (existingRecord) {
+    console.log(`Skipping duplicate event: ${event.eventId} (Already processed at ${existingRecord.processedAt})`);
+    return { status: "SKIPPED", reason: "Duplicate Event" };
+  }
+
+  try {
+    // Execute the main projection handler
+    await projectionHandler(event);
+
+    // Record the event as successfully processed
+    await processedEventsCollection.insertOne({
+      eventId: event.eventId,
+      eventType: event.eventType,
+      processedAt: new Date().toISOString()
+    });
+
+    return { status: "SUCCESS" };
+  } catch (error) {
+    console.error(`Error processing event ${event.eventId}:`, error.message);
+    throw error;
+  }
+}
