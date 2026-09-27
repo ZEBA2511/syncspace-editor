@@ -151,3 +151,19 @@ async function processEventSafely(event) {
 
   // Proceed with handler logic...
 }
+## 6. Read-Model Query API Example
+Exposing the projected data through a lightweight Express.js endpoint for the frontend dashboard:
+
+```javascript
+// Express.js route to get inventory details instantly from the Read Model
+app.get('/api/inventory/:sku', async (req, res) => {
+  try {
+    const item = await db.inventoryReadModel.findOne({ sku: req.params.sku });
+    if (!item) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+    res.status(200).json(item);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
