@@ -167,3 +167,67 @@ app.get('/api/inventory/:sku', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+# Week 1 (Day 4): Projection Logic & Event Handlers
+
+## 1. Overview
+Projections consume immutable events from the event store to build optimized read models for fast querying and low-latency UI rendering.
+
+## 2. Event Handler Implementation (`INVENTORY_ITEM_CREATED`)
+```javascript
+async function handleInventoryItemCreated(event) {
+  if (event.eventType !== "INVENTORY_ITEM_CREATED") {
+    return;
+  }
+
+  const { sku, itemName, quantity, warehouseLocation } = event.data;
+
+  const readModelRecord = {
+    sku: sku,
+    name: itemName,
+    currentStock: quantity,
+    location: warehouseLocation,
+    lastUpdatedEventId: event.eventId,
+    updatedAt: event.timestamp
+  };
+
+  await db.inventoryReadModel.insertOne(readModelRecord);
+  console.log(`Projection updated successfully for SKU: ${sku}`);
+}
+async function handleInventoryQuantityUpdated(event) {
+  if (event.eventType !== "INVENTORY_QUANTITY_UPDATED") {
+    return;
+  }
+
+  const { sku, quantityChange } = event.data;
+
+  await db.inventoryReadModel.updateOne(
+    { sku: sku },
+    { 
+      $inc: { currentStock: quantityChange },$set: { 
+        lastUpdatedEventId: event.eventId,
+        updatedAt: event.timestamp 
+      }
+    }
+  );
+  
+  console.log(`Stock updated successfully for SKU: ${sku}`);
+}
+async function processEventSafely(event) {
+  const existingRecord = await db.inventoryReadModel.findOne({ sku: event.data.sku });
+  
+  if (existingRecord && existingRecord.lastUpdatedEventId === event.eventId) {
+    console.log(`Event ${event.eventId} already processed. Skipping.`);
+    return;
+  }
+}
+app.get('/api/inventory/:sku', async (req, res) => {
+  try {
+    const item = await db.inventoryReadModel.findOne({ sku: req.params.sku });
+    if (!item) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+    res.status(200).json(item);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
