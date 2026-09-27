@@ -613,3 +613,84 @@ async function projectEventToReadModel(event) {
 }
 // Inside your /api/commands route, right after db.eventStore.insertOne(newEvent):
 await projectEventToReadModel(newEvent);
+// services/commandHandler.js - Core Command Processing Logic
+
+async function handleInventoryCommand(commandData, db) {
+  const { commandType, sku, payload } = commandData;
+
+  // 1. Map Command Type to Domain Event Type
+  let eventType;
+  switch (commandType) {
+    case 'CREATE_ITEM':
+      eventType = 'INVENTORY_ITEM_CREATED';
+      break;
+    case 'RESTOCK_ITEM':
+      eventType = 'INVENTORY_RESTOCKED';
+      break;
+    case 'DISPATCH_ITEM':
+      eventType = 'INVENTORY_DISPATCHED';
+      break;
+    default:
+      throw new Error(`Unsupported command type: ${commandType}`);
+  }
+
+  // 2. Fetch last sequence number to maintain strict ordering
+  const lastEvent = await db.eventStore.findOne({}, { sort: { sequenceNumber: -1 } });
+  const sequenceNumber = lastEvent ? lastEvent.sequenceNumber + 1 : 1;
+
+  // 3. Create the immutable Event object
+  const event = {
+    eventId: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    eventType,
+    sequenceNumber,
+    timestamp: new Date().toISOString(),
+    data: { sku, ...payload }
+  };
+
+  // 4. Append Event to Event Store
+  await db.eventStore.insertOne(event);
+
+  // 5. Update Read Model Projection instantly
+  await projectEventToReadModel(event, db);
+
+  return event;
+}
+
+// Inline Projection Helper for Real-time Read Model Sync
+async function projectEventToReadModel(event, db) {
+  const { eventType, data } = event;
+  const { sku } = data;
+
+  if (eventType === 'INVENTORY_ITEM_CREATED') {
+    await db.inventoryReadModel.updateOne(
+      { sku },
+      {
+        $set: {
+          sku,
+          name: data.name,
+          quantity: data.initialQuantity || 0,
+          warehouseLocation: data.warehouseLocation,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        }
+      },
+      { upsert: true }
+    );
+  } else if (eventType === 'INVENTORY_RESTOCKED') {
+    await db.inventoryReadModel.updateOne(
+      { sku },
+      { 
+        $inc: { quantity: data.quantityAdded },$set: { updatedAt: new Date().toISOString() }
+      }
+    );
+  } else if (eventType === 'INVENTORY_DISPATCHED') {
+    await db.inventoryReadModel.updateOne(
+      { sku },
+      { 
+        $inc: { quantity: -data.quantityDispatched },$set: { updatedAt: new Date().toISOString() }
+      }
+    );
+  }
+}
+
+module.exports = { handleInventoryCommand };
