@@ -284,3 +284,20 @@ describe('Inventory Projection Handlers', () => {
     );
   });
 });
+async function synchronizeEventStream(eventStore, projectionHandler) {
+  console.log("Starting event stream synchronization...");
+  
+  // Fetch all historical events ordered by timestamp/sequence
+  const events = await eventStore.find({}).sort({ sequenceNumber: 1 });
+
+  for (const event of events) {
+    try {
+      await projectionHandler(event);
+    } catch (error) {
+      console.error(`Failed to synchronize event ${event.eventId}:`, error.message);
+      // Optional: Push to Dead Letter Queue (DLQ)
+    }
+  }
+  
+  console.log("Event stream synchronization completed successfully.");
+}
