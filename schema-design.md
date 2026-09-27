@@ -112,3 +112,27 @@ async function handleInventoryItemCreated(event) {
 
   await db.inventoryReadModel.insertOne(readModelRecord);
 }
+## 4. Handling Stock Updates (`INVENTORY_QUANTITY_UPDATED`)
+To handle stock increments or decrements without overriding the entire record, we apply an atomic update to the read-model database:
+
+```javascript
+async function handleInventoryQuantityUpdated(event) {
+  if (event.eventType !== "INVENTORY_QUANTITY_UPDATED") {
+    return;
+  }
+
+  const { sku, quantityChange } = event.data;
+
+  // Atomic update using $inc operator in MongoDB
+  await db.inventoryReadModel.updateOne(
+    { sku: sku },
+    { 
+      $inc: { currentStock: quantityChange },$set: { 
+        lastUpdatedEventId: event.eventId,
+        updatedAt: event.timestamp 
+      }
+    }
+  );
+  
+  console.log(`Stock updated successfully for SKU: ${sku}`);
+}
