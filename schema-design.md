@@ -359,3 +359,20 @@ function validateEvent(event) {
   }
   return true;
 }
+// Dead Letter Queue (DLQ) Handler for Failed Events
+async function moveToDeadLetterQueue(event, errorMessage, dlqCollection) {
+  try {
+    const dlqRecord = {
+      originalEventId: event.eventId,
+      eventType: event.eventType,
+      payload: event,
+      errorReason: errorMessage,
+      failedAt: new Date().toISOString()
+    };
+
+    await dlqCollection.insertOne(dlqRecord);
+    console.warn(`Event ${event.eventId} successfully moved to DLQ due to: ${errorMessage}`);
+  } catch (dlqError) {
+    console.error(`CRITICAL: Failed to push event to DLQ:`, dlqError.message);
+  }
+}
