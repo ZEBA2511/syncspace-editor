@@ -376,3 +376,13 @@ async function moveToDeadLetterQueue(event, errorMessage, dlqCollection) {
     console.error(`CRITICAL: Failed to push event to DLQ:`, dlqError.message);
   }
 }
+for (const event of batch) {
+      try {
+        await projectionHandler(event);
+        lastSequenceNumber = event.sequenceNumber;
+      } catch (error) {
+        console.error(`Failed to process event ${event.eventId}:`, error.message);
+        // Safely route to DLQ instead of crashing the entire stream
+        await moveToDeadLetterQueue(event, error.message, db.deadLetterQueue);
+      }
+    }
