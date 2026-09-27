@@ -563,3 +563,6 @@ RUN npm install
 COPY . .
 EXPOSE 3000
 CMD ["node", "server.js"]
+git add .
+git commit -m "feat: add docker and docker-compose configuration for seamless containerized deployment"
+git push origin main
