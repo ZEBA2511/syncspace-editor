@@ -338,3 +338,24 @@ async function synchronizeEventStreamBatch(eventStore, projectionHandler, batchS
   
   console.log("Batch event stream synchronization completed successfully.");
 }
+## 6. Event Schema Validation Guard
+Validating incoming events against predefined schemas before projection processing:
+
+```javascript
+const Joi = require('joi');
+
+const eventSchema = Joi.object({
+  eventId: Joi.string().required(),
+  eventType: Joi.string().required(),
+  sequenceNumber: Joi.number().integer().min(1).required(),
+  timestamp: Joi.isoDate().required(),
+  data: Joi.object().required()
+});
+
+function validateEvent(event) {
+  const { error } = eventSchema.validate(event);
+  if (error) {
+    throw new Error(`Invalid event structure: ${error.message}`);
+  }
+  return true;
+}
