@@ -736,3 +736,95 @@ app.post('/api/commands', async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+// =====================================================================
+// 🚀 services/commandHandler.js - The Core Command Engine (Enterprise Edition)
+// "Code is like humor. When you have to explain it, it’s bad." 😉
+// =====================================================================
+
+async function handleInventoryCommand(commandData, db) {
+  const { commandType, sku, payload } = commandData;
+
+  // 1️⃣ Map incoming Command Type to a proper immutable Domain Event Type
+  let eventType;
+  switch (commandType) {
+    case 'CREATE_ITEM':
+      eventType = 'INVENTORY_ITEM_CREATED';
+      break;
+    case 'RESTOCK_ITEM':
+      eventType = 'INVENTORY_RESTOCKED';
+      break;
+    case 'DISPATCH_ITEM':
+      eventType = 'INVENTORY_DISPATCHED';
+      break;
+    default:
+      throw new Error(`⚠️ Oops! Unsupported command type: ${commandType}`);
+  }
+
+  // 2️⃣ Fetch the latest sequence number to maintain strict, unbroken event ordering 🔢
+  const lastEvent = await db.eventStore.findOne({}, { sort: { sequenceNumber: -1 } });
+  const sequenceNumber = lastEvent ? lastEvent.sequenceNumber + 1 : 1;
+
+  // 3️⃣ Construct the immutable Event object (Our source of truth!) 📦
+  const event = {
+    eventId: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    eventType,
+    sequenceNumber,
+    timestamp: new Date().toISOString(),
+    data: { sku, ...payload }
+  };
+
+  // 4️⃣ Safely append the event to the Event Store database 💾
+  await db.eventStore.insertOne(event);
+  console.log(`✅ Success! Event [${eventType}] securely recorded in EventStore for SKU: ${sku}`);
+
+  // 5️⃣ Instantly update the Read Model Projection for blazing-fast CQRS queries ⚡
+  await projectEventToReadModel(event, db);
+
+  return event;
+}
+
+// =====================================================================
+// 🔄 Inline Projection Helper for Real-time Read Model Synchronization
+// =====================================================================
+async function projectEventToReadModel(event, db) {
+  const { eventType, data } = event;
+  const { sku } = data;
+
+  if (eventType === 'INVENTORY_ITEM_CREATED') {
+    await db.inventoryReadModel.updateOne(
+      { sku },
+      {
+        $set: {
+          sku,
+          name: data.name,
+          quantity: data.initialQuantity || 0,
+          warehouseLocation: data.warehouseLocation,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        }
+      },
+      { upsert: true }
+    );
+    console.log(`✨ Read Model Synchronized: New item ${sku} is now live and active!`);
+    
+  } else if (eventType === 'INVENTORY_RESTOCKED') {
+    await db.inventoryReadModel.updateOne(
+      { sku },
+      { 
+        $inc: { quantity: data.quantityAdded },$set: { updatedAt: new Date().toISOString() }
+      }
+    );
+    console.log(`📈 Read Model Synchronized: Restocked SKU ${sku} successfully!`);
+    
+  } else if (eventType === 'INVENTORY_DISPATCHED') {
+    await db.inventoryReadModel.updateOne(
+      { sku },
+      { 
+        $inc: { quantity: -data.quantityDispatched },$set: { updatedAt: new Date().toISOString() }
+      }
+    );
+    console.log(`📉 Read Model Synchronized: Dispatched items from SKU ${sku} successfully!`);
+  }
+}
+
+module.exports = { handleInventoryCommand };
