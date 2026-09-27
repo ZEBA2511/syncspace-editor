@@ -301,3 +301,40 @@ async function synchronizeEventStream(eventStore, projectionHandler) {
   
   console.log("Event stream synchronization completed successfully.");
 }
+## 5. Optimized Batch Event Stream Synchronization
+For production systems with large event stores, fetching events in batches prevents memory overflow:
+
+```javascript
+async function synchronizeEventStreamBatch(eventStore, projectionHandler, batchSize = 1000) {
+  console.log("Starting batch event stream synchronization...");
+  
+  let lastSequenceNumber = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    // Fetch events in controlled batches using sequence numbers
+    const batch = await eventStore
+      .find({ sequenceNumber: { $gt: lastSequenceNumber } })
+      .sort({ sequenceNumber: 1 })
+      .limit(batchSize);
+
+    if (batch.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    for (const event of batch) {
+      try {
+        await projectionHandler(event);
+        lastSequenceNumber = event.sequenceNumber;
+      } catch (error) {
+        console.error(`Failed to process event ${event.eventId}:`, error.message);
+        // Handle failure (e.g., skip or push to DLQ based on business logic)
+      }
+    }
+    
+    console.log(`Processed batch up to sequence number: ${lastSequenceNumber}`);
+  }
+  
+  console.log("Batch event stream synchronization completed successfully.");
+}
