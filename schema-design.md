@@ -504,3 +504,55 @@ router.get('/api/inventory', async (req, res) => {
 });
 
 module.exports = router;
+// server.js - Main Application Entry Point
+const express = require('express');
+const { MongoClient } = require('mongodb');
+
+// Import routers created in Day 6
+const commandRouter = require('./routes/commands'); // Path to your command API
+const queryRouter = require('./routes/queries');     // Path to your query API
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/inventory_ledger';
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+// Global Database Connection Setup
+async function startServer() {
+  try {
+    const client = new MongoClient(MONGO_URI);
+    await client.connect();
+    console.log("Connected successfully to MongoDB database.");
+
+    // Attach database instance globally or pass via middleware
+    global.db = {
+      eventStore: client.db().collection('eventStore'),
+      inventoryReadModel: client.db().collection('inventoryReadModel'),
+      deadLetterQueue: client.db().collection('deadLetterQueue'),
+      processedEvents: client.db().collection('processedEvents'),
+      snapshots: client.db().collection('snapshots')
+    };
+
+    // Mount API Routes
+    app.use(commandRouter);
+    app.use(queryRouter);
+
+    // Health Check Route
+    app.get('/health', (req, res) => {
+      res.status(200).json({ status: "UP", timestamp: new Date().toISOString() });
+    });
+
+    // Start Express Server
+    app.listen(PORT, () => {
+      console.log(`Inventory & Logistics Ledger API server running on port ${PORT}`);
+    });
+
+  } catch (error) {
+    console.error("Failed to start server:", error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
