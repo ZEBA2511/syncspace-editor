@@ -694,3 +694,24 @@ async function projectEventToReadModel(event, db) {
 }
 
 module.exports = { handleInventoryCommand };
+const { handleInventoryCommand } = require('./services/commandHandler');
+
+app.post('/api/commands', async (req, res) => {
+  try {
+    const { error, value } = inventoryCommandSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const processedEvent = await handleInventoryCommand(value, global.db);
+
+    return res.status(201).json({
+      success: true,
+      message: "Command processed successfully.",
+      event: processedEvent
+    });
+  } catch (err) {
+    console.error("Command error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
